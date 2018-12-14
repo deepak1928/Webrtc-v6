@@ -1,0 +1,204 @@
+const express = require('express')
+const http = require('http')
+const socketIO = require('socket.io')
+let ids = {}
+
+// our localhost port
+const port = 4001
+const app = express()
+const server = http.createServer(app)
+const io = socketIO(server)
+io.on('connection', socket => {
+  console.log('New client connected')  
+  socket.on('searchingPeer',(id)=>{
+    console.log("id ",id)
+    let candidates = null
+    let iter = 0
+    for(let stored_id in ids){//ids.foreach((stored_id)=>{//
+      let {candidate} = stored_id
+      if(!(candidate===id) && iter<1){ //sending one candidate by time
+        candidates[candidate] = candidate
+        iter =iter + 1
+      }
+    }//)
+    const newId = {id:id}
+    let r_ids = {...ids}
+    ids = Object.assign({},r_ids,newId)//{...r_ids,newId}
+    console.log("ids: ", ids)
+    socket.emit('newCandidate',candidates)
+  })
+
+  socket.on('receiveCandidate',({candidates},callback)=>{
+    callback(candidates)
+  })
+
+  socket.on('resMatchingPeer',({id_arrived,id_response})=>{
+    socket.broadcast.to(id_arrived).emit(id_response);
+  })
+
+  // just like on the client side, we have a socket.on method that takes a callback function
+  socket.on('change color', (color) => {
+    // once we get a 'change color' event from one of our clients, we will send it to the rest of the clients
+    // we make use of the socket.emit method again with the argument given to use from the callback function above
+    console.log('Color Changed to: ', color)
+    io.sockets.emit('change color', color)//or simply io.emit(...)...emit to all other nodes
+  })
+
+  // disconnect is fired when a client leaves the server
+  socket.on('disconnect', () => {
+    console.log('user disconnected')
+  })
+})
+
+server.listen(port, () => console.log(`Listening on port ${port}`))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import packages
+import React, { Component } from 'react'
+//import socketIOClient from 'socket.io-client'
+import io from 'socket.io-client'
+import { v1 } from 'uuid';
+const endpoint = "http://localhost:4001" // this is where we are connecting to with sockets
+class App extends Component {
+    state = {
+      //node_id:v1(),
+      sent: false,
+      socket:io(endpoint),
+      otherNodes_id:{}
+    }
+
+  componentWillMount() {
+    const {socket} =this.state
+    socket.on('connect', ()=>{
+      console.log("triggered socket.id: ",socket.id)
+    })
+    socket.emit('searchingPeer',{'id':socket.id})
+  }
+  receiveCandidateHandler = (data) =>{
+    const {candidate} = data
+    if(!this.state.otherNodes_id.candidate) {
+      const nodes_id = {...this.state.otherNodes_id}
+      const newId = {candidate:candidate}
+      console.log("otherNodes_id", this.state.otherNodes_id)
+      this.setState({otherNodes_id:{...nodes_id,newId},sent:true})
+    }else{
+      this.setState({sent:true})
+    }
+  }
+  render() {
+    const {socket} = this.state
+
+    socket.on('newCandidate',(candidates) => socket.emit('receiveCandidate',candidates,this.receiveCandidateHandler))
+
+    return (
+      <div style={{ textAlign: "center" }}>        
+        <button id="blue" onClick={() => this.setColor('blue')}>Blue</button>
+        <button id="red" onClick={() => this.setColor('red')}>Red</button>
+      </div>
+    )
+  }
+}
+
+export default App
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  //socket.on('searchingPeer',({id},callback)=>{
+  socket.on('searchingPeer',({id})=>{  
+    let candidates = null
+    let iter = 0
+    for (let stored_id of ids){
+      let {candidate} = stored_id
+      if(!(candidate===id && iter<5)){
+        candidates[candidate] = candidate
+        iter =iter + 1
+      }
+    }
+    const newId = {id:id}
+    let r_ids = {...ids}
+    ids = {...r_ids,newId}
+    if(candidates){
+      candidates["notFound"]=false
+      callback(candidates)
+    }
+    //io.emit('matchingPeer',id)
+  })
